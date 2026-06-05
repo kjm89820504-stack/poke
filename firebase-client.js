@@ -101,7 +101,7 @@
       type,
       stage: Number(payload.stage || 1),
       elapsedSeconds: Number(payload.elapsedSeconds || 0),
-      stageSeconds: Number(payload.stageSeconds || 30),
+      stageSeconds: Number(payload.stageSeconds || 15),
       obstacleCount: Number(payload.obstacleCount || 0),
       completed: Boolean(payload.completed),
       browserId: getBrowserId(),

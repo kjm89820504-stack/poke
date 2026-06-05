@@ -18,13 +18,15 @@
   const WORLD_HEIGHT = 540;
   const GROUND_Y = 422;
   const MAX_STAGE = 5;
+  const DEFAULT_STAGE_SECONDS = 15;
+  const JUMP_BUFFER_SECONDS = 0.16;
   const params = new URLSearchParams(window.location.search);
   const DEBUG_MODE = params.get("debug") === "1";
   const SAFE_RUN = DEBUG_MODE && params.get("safe") === "1";
   const requestedStageSeconds = params.has("stageSeconds") ? Number(params.get("stageSeconds")) : NaN;
   const STAGE_SECONDS = Number.isFinite(requestedStageSeconds)
-    ? Math.min(30, Math.max(DEBUG_MODE ? 2 : 10, requestedStageSeconds))
-    : 30;
+    ? Math.min(DEFAULT_STAGE_SECONDS, Math.max(DEBUG_MODE ? 2 : 5, requestedStageSeconds))
+    : DEFAULT_STAGE_SECONDS;
 
   const telemetry = {
     log(type, payload) {
@@ -54,6 +56,7 @@
     onGround: true,
     maxJumps: 2,
     jumpsUsed: 0,
+    jumpBufferTimer: 0,
     runPhase: 0,
     fallRotation: 0,
   };
@@ -66,7 +69,9 @@
     obstacles: [],
     particles: [],
     crashTimer: 0,
+    crashOverlayShown: false,
     completeTime: 0,
+    restartStage: 1,
     lastTime: 0,
     groundOffset: 0,
     clouds: [
@@ -165,6 +170,17 @@
     };
   }
 
+  function getInitialStage() {
+    const requestedStartStage =
+      DEBUG_MODE && params.has("startStage") ? Number(params.get("startStage")) : 1;
+
+    if (!Number.isFinite(requestedStartStage)) {
+      return 1;
+    }
+
+    return Math.max(1, Math.min(MAX_STAGE, Math.floor(requestedStartStage)));
+  }
+
   function resetStage(stage) {
     const settings = getStageSettings(stage);
     game.stage = stage;
@@ -173,12 +189,15 @@
     game.obstacles = [];
     game.particles = [];
     game.crashTimer = 0;
+    game.crashOverlayShown = false;
     game.completeTime = 0;
+    game.restartStage = Math.max(1, Math.min(MAX_STAGE, stage));
     game.groundOffset = 0;
     player.y = GROUND_Y - player.h;
     player.vy = 0;
     player.onGround = true;
     player.jumpsUsed = 0;
+    player.jumpBufferTimer = 0;
     player.runPhase = 0;
     player.fallRotation = 0;
     scheduleObstacle(settings, true);
@@ -203,6 +222,11 @@
     beginRun();
   }
 
+  function restartFromFailure() {
+    resetStage(game.restartStage);
+    beginRun();
+  }
+
   function nextStage() {
     if (game.stage >= MAX_STAGE) {
       restartFromStageOne();
@@ -214,24 +238,28 @@
 
   function jump() {
     if (game.state !== "running") {
-      return;
+      return false;
     }
 
     if (player.onGround) {
       player.vy = -825;
       player.onGround = false;
       player.jumpsUsed = 1;
+      player.jumpBufferTimer = 0;
       createDust(player.x + 36, GROUND_Y - 8, 9);
-      return;
+      return true;
     }
 
     if (player.jumpsUsed >= player.maxJumps) {
-      return;
+      player.jumpBufferTimer = JUMP_BUFFER_SECONDS;
+      return false;
     }
 
     player.vy = -760;
     player.jumpsUsed += 1;
+    player.jumpBufferTimer = 0;
     createLightningParticles(player.x + player.w * 0.52, player.y + player.h * 0.72, 12);
+    return true;
   }
 
   function update(dt) {
@@ -254,18 +282,23 @@
     game.elapsed += dt;
     game.groundOffset = (game.groundOffset + speed * dt) % 96;
     player.runPhase += dt * (10.5 + game.stage * 0.55);
+    player.jumpBufferTimer = Math.max(0, player.jumpBufferTimer - dt);
 
     player.vy += 2050 * dt;
     player.y += player.vy * dt;
     const floorY = GROUND_Y - player.h;
     if (player.y >= floorY) {
       const wasAirborne = !player.onGround;
+      const shouldBufferedJump = wasAirborne && player.jumpBufferTimer > 0;
       player.y = floorY;
       player.vy = 0;
       player.onGround = true;
       player.jumpsUsed = 0;
       if (wasAirborne) {
         createDust(player.x + 36, GROUND_Y - 8, 5);
+      }
+      if (shouldBufferedJump) {
+        jump();
       }
     }
 
@@ -296,8 +329,9 @@
     player.fallRotation = Math.min(1.34, player.fallRotation + dt * 3.2);
     player.y = Math.min(GROUND_Y - player.h * 0.5, player.y + dt * 190);
 
-    if (game.crashTimer > 0.58) {
-      showOverlay("FAILED", "실패", "1스테이지부터 다시 시작", "다시");
+    if (game.crashTimer > 0.58 && !game.crashOverlayShown) {
+      game.crashOverlayShown = true;
+      showOverlay("FAILED", "실패", `${game.restartStage}스테이지부터 다시 시작`, "다시");
     }
   }
 
@@ -393,6 +427,8 @@
     }
     game.state = "crashed";
     game.crashTimer = 0;
+    game.crashOverlayShown = false;
+    game.restartStage = Math.max(1, game.stage - 1);
     createDust(player.x + 64, GROUND_Y - 4, 22);
     telemetry.log("stage_fail", {
       stage: game.stage,
@@ -821,7 +857,7 @@
     } else if (game.state === "stageClear") {
       nextStage();
     } else if (game.state === "crashed") {
-      restartFromStageOne();
+      restartFromFailure();
     } else if (game.state === "complete") {
       restartFromStageOne();
     }
@@ -891,6 +927,8 @@
           playerY: player.y,
           jumpsUsed: player.jumpsUsed,
           maxJumps: player.maxJumps,
+          jumpBufferTimer: player.jumpBufferTimer,
+          restartStage: game.restartStage,
         };
       },
       forceStageClear() {
@@ -904,7 +942,8 @@
   }
 
   resizeCanvas();
-  resetStage(1);
-  showOverlay("READY", "STAGE 1", "골인 지점까지 달려보자", "시작");
+  const initialStage = getInitialStage();
+  resetStage(initialStage);
+  showOverlay("READY", `STAGE ${initialStage}`, "골인 지점까지 달려보자", "시작");
   window.requestAnimationFrame(loop);
 })();
