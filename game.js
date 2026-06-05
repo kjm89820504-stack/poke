@@ -52,6 +52,8 @@
     h: 112,
     vy: 0,
     onGround: true,
+    maxJumps: 2,
+    jumpsUsed: 0,
     runPhase: 0,
     fallRotation: 0,
   };
@@ -176,6 +178,7 @@
     player.y = GROUND_Y - player.h;
     player.vy = 0;
     player.onGround = true;
+    player.jumpsUsed = 0;
     player.runPhase = 0;
     player.fallRotation = 0;
     scheduleObstacle(settings, true);
@@ -210,12 +213,25 @@
   }
 
   function jump() {
-    if (game.state !== "running" || !player.onGround) {
+    if (game.state !== "running") {
       return;
     }
-    player.vy = -825;
-    player.onGround = false;
-    createDust(player.x + 36, GROUND_Y - 8, 9);
+
+    if (player.onGround) {
+      player.vy = -825;
+      player.onGround = false;
+      player.jumpsUsed = 1;
+      createDust(player.x + 36, GROUND_Y - 8, 9);
+      return;
+    }
+
+    if (player.jumpsUsed >= player.maxJumps) {
+      return;
+    }
+
+    player.vy = -760;
+    player.jumpsUsed += 1;
+    createLightningParticles(player.x + player.w * 0.52, player.y + player.h * 0.72, 12);
   }
 
   function update(dt) {
@@ -243,9 +259,14 @@
     player.y += player.vy * dt;
     const floorY = GROUND_Y - player.h;
     if (player.y >= floorY) {
+      const wasAirborne = !player.onGround;
       player.y = floorY;
       player.vy = 0;
       player.onGround = true;
+      player.jumpsUsed = 0;
+      if (wasAirborne) {
+        createDust(player.x + 36, GROUND_Y - 8, 5);
+      }
     }
 
     game.obstacleTimer -= dt;
@@ -828,6 +849,10 @@
   });
 
   window.addEventListener("keydown", function (event) {
+    if (event.repeat) {
+      return;
+    }
+
     if (event.code === "Space") {
       event.preventDefault();
       handlePrimaryAction();
@@ -864,6 +889,8 @@
           elapsed: game.elapsed,
           obstacleCount: game.obstacles.length,
           playerY: player.y,
+          jumpsUsed: player.jumpsUsed,
+          maxJumps: player.maxJumps,
         };
       },
       forceStageClear() {

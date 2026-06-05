@@ -1,0 +1,44 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "runs": {
+      ".indexOn": ["createdAt", "stage", "type"],
+      "$runId": {
+        ".read": false,
+        ".write": "!data.exists() && newData.exists()",
+        ".validate": "newData.hasChildren(['type', 'stage', 'elapsedSeconds', 'stageSeconds', 'obstacleCount', 'completed', 'browserId', 'userAgent', 'createdAt']) && newData.child('stageSeconds').val() == 300 && (newData.child('type').val() != 'stage_start' || (newData.child('elapsedSeconds').val() == 0 && newData.child('obstacleCount').val() == 0 && newData.child('completed').val() == false)) && (newData.child('type').val() != 'stage_clear' || (newData.child('elapsedSeconds').val() == 300 && newData.child('completed').val() == false)) && (newData.child('type').val() != 'stage_fail' || newData.child('completed').val() == false) && (newData.child('type').val() != 'all_clear' || (newData.child('stage').val() == 5 && newData.child('elapsedSeconds').val() == 300 && newData.child('completed').val() == true))",
+        "type": {
+          ".validate": "newData.isString() && (newData.val() == 'stage_start' || newData.val() == 'stage_clear' || newData.val() == 'stage_fail' || newData.val() == 'all_clear')"
+        },
+        "stage": {
+          ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 5"
+        },
+        "elapsedSeconds": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 300"
+        },
+        "stageSeconds": {
+          ".validate": "newData.isNumber() && newData.val() == 300"
+        },
+        "obstacleCount": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000"
+        },
+        "completed": {
+          ".validate": "newData.isBoolean()"
+        },
+        "browserId": {
+          ".validate": "newData.isString() && newData.val().length <= 80"
+        },
+        "userAgent": {
+          ".validate": "newData.isString() && newData.val().length <= 120"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 60000"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}

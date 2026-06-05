@@ -7,7 +7,7 @@
   const firebaseConfig = window.PIKACHU_FIREBASE_CONFIG;
   const clientParams = new URLSearchParams(window.location.search);
   const pendingEvents = [];
-  let firestore = null;
+  let realtimeDatabase = null;
   let firebaseReady = false;
   let firebaseLoading = false;
 
@@ -24,7 +24,10 @@
         !config.apiKey.includes("YOUR_") &&
         typeof config.projectId === "string" &&
         config.projectId &&
-        !config.projectId.includes("YOUR_"),
+        !config.projectId.includes("YOUR_") &&
+        typeof config.databaseURL === "string" &&
+        config.databaseURL &&
+        !config.databaseURL.includes("YOUR_"),
     );
   }
 
@@ -47,10 +50,10 @@
     firebaseLoading = true;
     try {
       await loadScript(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app-compat.js`);
-      await loadScript(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore-compat.js`);
+      await loadScript(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-database-compat.js`);
 
       window.firebase.initializeApp(firebaseConfig);
-      firestore = window.firebase.firestore();
+      realtimeDatabase = window.firebase.database();
       firebaseReady = true;
 
       while (pendingEvents.length) {
@@ -108,7 +111,7 @@
 
   function logEvent(type, payload) {
     const event = normalizePayload(type, payload || {});
-    if (firestore) {
+    if (realtimeDatabase) {
       sendEvent(event);
       return;
     }
@@ -118,18 +121,18 @@
   }
 
   function sendEvent(event) {
-    if (!firestore) {
+    if (!realtimeDatabase) {
       return;
     }
 
-    firestore
-      .collection("runs")
-      .add({
+    realtimeDatabase
+      .ref("runs")
+      .push({
         ...event,
-        createdAt: window.firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt: window.firebase.database.ServerValue.TIMESTAMP,
       })
       .catch((error) => {
-        console.warn("Firebase event write failed.", error);
+        console.warn("Realtime Database event write failed.", error);
       });
   }
 
