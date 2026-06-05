@@ -1,0 +1,1 @@
+window.PIKACHU_FIREBASE_CONFIG = null;

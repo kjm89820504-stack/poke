@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pika Runner</title>
+    <meta
+      name="description"
+      content="A canvas obstacle runner with five escalating stages and Firebase telemetry support."
+    />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css?v=5" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hud" aria-label="Game status">
+        <div class="brand-mark">
+          <span class="bolt" aria-hidden="true"></span>
+          <span>Pika Runner</span>
+        </div>
+        <div class="hud-stats">
+          <span id="stage-label">STAGE 1 / 5</span>
+          <span id="time-label">05:00</span>
+          <span id="best-label">BEST 0</span>
+        </div>
+      </header>
+
+      <main class="game-layout">
+        <section class="game-frame" aria-label="Pika Runner game">
+          <canvas id="game-canvas" width="960" height="540"></canvas>
+          <div id="overlay" class="overlay" role="dialog" aria-live="polite">
+            <div class="overlay-panel">
+              <p id="overlay-kicker" class="overlay-kicker">READY</p>
+              <h1 id="overlay-title">STAGE 1</h1>
+              <p id="overlay-copy">골인 지점까지 달려보자</p>
+              <button id="overlay-action" class="primary-action" type="button">
+                시작
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <div class="progress-track" aria-hidden="true">
+          <span id="progress-fill"></span>
+        </div>
+
+        <div class="touch-controls">
+          <button id="jump-button" class="jump-button" type="button" aria-label="Jump">
+            ↑
+          </button>
+        </div>
+      </main>
+    </div>
+
+    <script src="firebase-config.js?v=5"></script>
+    <script src="firebase-client.js?v=5"></script>
+    <script src="game.js?v=5"></script>
+  </body>
+</html>
