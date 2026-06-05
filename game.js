@@ -23,8 +23,8 @@
   const SAFE_RUN = DEBUG_MODE && params.get("safe") === "1";
   const requestedStageSeconds = params.has("stageSeconds") ? Number(params.get("stageSeconds")) : NaN;
   const STAGE_SECONDS = Number.isFinite(requestedStageSeconds)
-    ? Math.min(300, Math.max(DEBUG_MODE ? 2 : 10, requestedStageSeconds))
-    : 300;
+    ? Math.min(30, Math.max(DEBUG_MODE ? 2 : 10, requestedStageSeconds))
+    : 30;
 
   const telemetry = {
     log(type, payload) {
